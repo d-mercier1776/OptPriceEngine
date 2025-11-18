@@ -2,60 +2,109 @@
 #include <cmath>
 #include <algorithm>
 #include <stdexcept>
-#include <string>
-
-// max bits for precision 
-#define MAXBIT 30 
-// max support dimension based on the direction numbers available
-#define MAXDIM 40
-
-// Static Direction Number Data (Joe/Kuo based)
-// Degree of the primitive polynomial (d) for dimensions 1 to 40.
-static const int deg[MAXDIM] = {
-    1, 2, 3, 3, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7
-};
-
-// The coefficients (A values) for the primitive polynomials for dimensions 1 to 40.
-// This defines which prior terms in the recurrence are XORed.
-static const unsigned int a[MAXDIM] = {
-    0, 1, 1, 2, 1, 4, 2, 4, 8, 11, 2, 4, 8, 16, 17, 20, 26, 30, 31, 32, 2, 4, 8, 16, 32, 33, 40, 48, 56, 63, 64, 72, 80, 88, 96, 104, 112, 120, 127, 128
-};
-
-// Initial direction numbers (V values). We assume V_1 = 1 for all dimensions,
-// this simplication when the full set of initial direction numbers is not provided.
-static const unsigned int v_first_row[MAXDIM] = {
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-};
+#include <string> 
 
 namespace utils{
-    /**
-     *  @brief Constructor: Initializes the Sobol generator using Joe/Kuo parameters.
-    */
-    SobalGenerator::SobalGenerator(int dimensions)
-                    :dimensions_(dimensions),
+    // maxmium number of bits for direction numbers
+    static constexpr int MAXBIT = 30;
+
+    // primitive polynomials for dimensions up 
+    static const int MAXDIM = 6; 
+    static const int mdeg[MAXDIM] = {1,2,3,3,4, 4};
+    static const unsigned int ip[MAXDIM] = {0, 1, 1, 2, 1, 1};
+    static const unsigned int iv[MAXDIM * MAXBIT] = {
+        1,1,1,1,1,1,
+        1,3,1,3,3,1,
+        1,5,7,7,3,3,
+        5,15,11,5,15,13,
+        9
+    };
+
+    SobolGenerator::SobolGenerator(int dimensions)
+                   : dimensions_(dimensions),
                      current_index_(0),
-                     current_int_state_(dimensions), 
-                     direction_numbers_(dimensions * MAXBIT)
+                     current_int_state_(dimensions, 0),
+                     direction_numbers_(MAXBIT* dimensions, 0),
+                     normalization_factor_(1.0/ (1ULL << MAXBIT))
     {
-        if(dimensions_ <=0 || dimensions > MAXDIM){
-           throw std::out_of_range("Sobol Generator dimensions must be between 1 and MAXDIM (" + std::to_string(MAXDIM) + ").");
+        if (dimensions_ <= 0 || dimensions_ > MAXDIM) {
+            throw std::out_of_range("Sobol Generator dimensions must be between 1 and MAXDIM (" + std::to_string(MAXDIM) + ").");
         }
-        // 1. compute the normalization factor: 1.0 / 2^ MAXBIT
-        normalization_factor_ = 1.0 / (1.0 * (1u< MAXBIT));
-        
-        // get the pointer to start of the direction numbers
-        unsigned int* iv_ptr = direction_numbers_.data();
 
-        // 2. compute Direction Numbers (joe/ku recurrence)
-        // load and shift the first row of direction numbers (v_1)
-        for(int k = 0; k< dimensions_;++k){
-            // index j = 0, k = dimensions
-            iv_ptr[0* dimensions_ + k] = v_first_row[k];
+         // direction numbers
+        for(int k = 0; k < dimensions_; k++){
+            for(int j = 0; j< mdeg[k];j++){
+               direction_numbers_[j * dimensions_ + k] = iv[j * dimensions_ + k] << (MAXBIT - 1 - j);
+            }
 
-            // v_j is scaled by 2^(MAXBIT-j) for j = 1 and this is 2^(MAXBIT-1)
-            iv_ptr[0 * dimensions_ + k] <<= (MAXBIT - 1);
-        }
-        // use the reurrence relation to calculate the rest (V2 to V mAXBIT)
-        
+             // fill up the remaining direction numbers 
+            for(int j = mdeg[k]; j< MAXBIT; j++){
+                unsigned int ipp = ip[k];
+                unsigned int i = direction_numbers_[(j - mdeg[k]) * dimensions_ + k];
+                i ^= (i >> mdeg[k]);
+
+                for (int l = mdeg[k] - 1; l >= 1; l--) {
+                    if (ipp & 1) i ^= direction_numbers_[(j - l) * dimensions_ + k];
+                    ipp >>= 1;
+                }
+
+                direction_numbers_[j * dimensions_ + k] = i;
+            }
+        }  
     }
+    double SobolGenerator::get_uniform_quasi(){
+         // Generate next Sobol vector component
+        long long n = current_index_;
+        int j;
+        for (j = 0; j < MAXBIT; j++) {
+            if (!(n & 1)) break;
+            n >>= 1;
+        }
+
+        if (j >= MAXBIT) {
+            throw std::runtime_error("MAXBIT too small in sobol sequence");
+        }
+
+        for (int k = 0; k < dimensions_; k++) {
+            current_int_state_[k] ^= direction_numbers_[j * dimensions_ + k];
+        }
+
+        current_index_++;
+
+        // Return first component for single uniform number
+        return current_int_state_[0] * normalization_factor_;
+    }
+
+    double SobolGenerator::get_normal(){
+        // use the box-muller transformation to covert uniform to normal
+        static bool has_cached = false;
+        static double cached = 0.0;
+
+        if (has_cached) {
+            has_cached = false;
+            return cached;
+        }
+
+        double u1 = get_uniform_quasi();
+        double u2 = get_uniform_quasi();
+        double r = std::sqrt(-2.0 * std::log(u1));
+        double theta = 2.0 * M_PI * u2;
+
+        cached = r * std::sin(theta);
+        has_cached = true;
+        return r * std::cos(theta); 
+    }
+
+    void SobolGenerator::fill_normal_vector(std::vector<double>& out_vector) {
+        out_vector.resize(dimensions_);
+        for (int k = 0; k < dimensions_; k++) {
+            out_vector[k] = get_normal();
+        }
+    }
+
+    void SobolGenerator::reset() {
+        current_index_ = 0;
+        std::fill(current_int_state_.begin(), current_int_state_.end(), 0);
+    }
+
 }

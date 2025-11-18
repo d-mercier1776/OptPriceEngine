@@ -1,14 +1,15 @@
 #ifndef QUANT_UTILS_SOBOL_GENERATOR_H
 #define QUANT_UTILS_SOBOL_GENERATOR_H
+#define M_PI 3.14159265358979323846
 
 #include "i_random_generator.h"
 #include <vector>
 
 namespace utils{
-    class SobalGenerator : public IRandomGenerator{
+    class SobolGenerator : public IRandomGenerator{
         public:
             // Dimensions for Sobal sequence 
-            SobalGenerator(int dimensions);
+            SobolGenerator(int dimensions);
             // implementation of the interface methods 
             // Use Inverse CDF
             double get_normal() override; 
