@@ -77,8 +77,8 @@ namespace utils{
 
     double SobolGenerator::get_normal(){
         // use the box-muller transformation to covert uniform to normal
-        static bool has_cached = false;
-        static double cached = 0.0;
+        bool has_cached = false;
+        double cached = 0.0;
 
         if (has_cached) {
             has_cached = false;
@@ -97,8 +97,8 @@ namespace utils{
 
     void SobolGenerator::fill_normal_vector(std::vector<double>& out_vector) {
         out_vector.resize(dimensions_);
-        for (int k = 0; k < dimensions_; k++) {
-            out_vector[k] = get_normal();
+        for (double& v : out_vector){
+            v = get_normal();
         }
     }
 
