@@ -1,5 +1,4 @@
-#ifndef QUANT_UTILS_MT_GENERATOR_H
-#define QUANT_UTILS_MT_GENERATOR_H
+#pragma once
 
 #include "i_random_generator.h"
 #include <random>
@@ -19,4 +18,3 @@ namespace utils{
             unsigned int initial_seed_;
     };
 }
-#endif 

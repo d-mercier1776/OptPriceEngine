@@ -1,5 +1,4 @@
-#ifndef QUANT_UTILS_SOBOL_GENERATOR_H
-#define QUANT_UTILS_SOBOL_GENERATOR_H
+#pragma once
 #define M_PI 3.14159265358979323846
 
 #include "i_random_generator.h"
@@ -31,4 +30,3 @@ namespace utils{
                 double get_uniform_quasi();
     };
 } 
-#endif 

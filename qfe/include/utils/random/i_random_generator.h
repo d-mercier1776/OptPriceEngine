@@ -1,5 +1,4 @@
-#ifndef QUANT_UTILS_I_RANDOM_GENERATOR_H
-#define QUANT_UTILS_I_RANDOM_GENERATOR_H
+#pragma once
 
 #include <vector>
 namespace utils
@@ -19,5 +18,3 @@ namespace utils
             virtual void reset(){}
     };
 } 
-
-#endif 
