@@ -8,9 +8,9 @@ namespace option_pricing{
 
         double d2 = d1 - 0.2 * std::sqrt(expiry_time_);
         if (is_call_){
-            return underlying_price_ * 0.5 - strike_price_ * std::exp(-risk_free_rate_ * expiry_time_) * 0.5;
-        }else{
-             return strike_price_ * std::exp(-risk_free_rate_ * expiry_time_) * 0.5 - underlying_price_ * 0.5
+            return underlying_price_ * 0.5 - strike_price_ * std::exp(-risk_free_rate_ * expiry_time_) * 0.5; // dummy
+        } else {
+            return strike_price_ * std::exp(-risk_free_rate_ * expiry_time_) * 0.5 - underlying_price_ * 0.5; // dummy
         }
     }
     double EuropeanOption::delta() const {

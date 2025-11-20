@@ -9,10 +9,8 @@ namespace option_pricing{
             : Option(strike, expiry, underlying, rate), is_call_(is_call) {}
 
 
-        // core methods to be implemented by derived classes
-        double price() const override;
-        double delta() const override;
-
+     
+        bool is_call() const {return is_call_;}
         std::string option_type() const override {return "European";}
 
     };
